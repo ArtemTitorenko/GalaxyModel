@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QGraphicsView, QGraphicsScene
 from PyQt5.QtWidgets import QGridLayout, QGraphicsEllipseItem, QApplication
 from PyQt5.QtWidgets import QGraphicsLineItem
 from PyQt5.QtCore import QPointF
-from graphical_objects import EllipticalObject
+from graphical_objects import EllipticalObject, EllipticalOrbit
 
 class MainWindow(QWidget):
 
@@ -21,11 +21,12 @@ class MainWindow(QWidget):
         self.line.setLine(0, -50, 0, 50)
         self.scene.addItem(self.line)
 
-        self.ellipse = EllipticalObject(0.36, 50)
-        self.ellipse.set_center_pos(point)
+        self.center = EllipticalObject(0, 10)
+        self.center.set_center_pos(point)
+        self.scene.addItem(self.center)
 
+        self.ellipse = EllipticalOrbit(self.center, 0.6, 200)
         self.scene.addItem(self.ellipse)
-        print(self.ellipse.center_pos())
 
         self.update()
 

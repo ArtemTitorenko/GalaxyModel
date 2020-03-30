@@ -42,3 +42,27 @@ class EllipticalObject(QGraphicsEllipseItem):
 
         return pos + QPointF(dx, dy)
 
+class EllipticalOrbit(EllipticalObject):
+
+    def __init__(self,
+            center: EllipticalObject,
+            eccentricity: float,
+            s_major_axis: float):
+
+        EllipticalObject.__init__(self, eccentricity, s_major_axis)
+
+        self.center = center
+        self.linear_eccentricity = self.compute_linear_eccentricity()
+
+        self.init_pos()
+
+    def compute_linear_eccentricity(self):
+        a, b = self.s_major_axis, self.s_minor_axis
+        return math.sqrt(math.pow(a, 2) - math.pow(b, 2))
+
+    def init_pos(self):
+        dx, dy = self.linear_eccentricity, 0
+        center_pos = self.center.center_pos()
+
+        self.set_center_pos(center_pos - QPointF(dx, dy))
+
