@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QGraphicsEllipseItem
 import math
+from PyQt5.QtWidgets import QGraphicsEllipseItem
 
 from PyQt5.QtCore import QPointF, Qt, QRectF
 from PyQt5.QtGui import QBrush, QPen, QColor

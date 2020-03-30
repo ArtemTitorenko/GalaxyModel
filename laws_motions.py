@@ -31,7 +31,7 @@ class EllipticalKeplersMotion(LawMotion):
         self.period = period
         self.s_major_axis = s_major_axis
         self.eccentricity = eccentricity
-        self.start_rotation = math.radians(start_rotation)
+        self.start_rotation = start_rotation
 
         self.n = self.compute_n()
         self.tau = self.compute_tau()
@@ -79,7 +79,6 @@ class EllipticalKeplersMotion(LawMotion):
         M = self.mean_anomaly(time)
         E = self.eccentric_anomaly(M)
         f = round(self.true_anomaly(E), 5)
-        print(f)
 
         return f
 
