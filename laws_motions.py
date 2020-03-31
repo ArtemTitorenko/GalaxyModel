@@ -3,6 +3,7 @@ import math
 from abc import ABC, abstractmethod
 from functools import lru_cache
 
+
 class LawMotion(ABC):
 
     @abstractmethod
@@ -18,7 +19,7 @@ class CircularMotion(LawMotion):
 
     def rotation(self, time: float = 0):
         rotation = self.rotational_speed * time + self.start_rotation
-        return rotation
+        return round(rotation, 5)
 
 class EllipticalKeplersMotion(LawMotion):
 
@@ -31,7 +32,7 @@ class EllipticalKeplersMotion(LawMotion):
         self.period = period
         self.s_major_axis = s_major_axis
         self.eccentricity = eccentricity
-        self.start_rotation = math.radians(start_rotation)
+        self.start_rotation = start_rotation
 
         self.n = self.compute_n()
         self.tau = self.compute_tau()
@@ -78,8 +79,7 @@ class EllipticalKeplersMotion(LawMotion):
     def rotation(self, time: float = 0):
         M = self.mean_anomaly(time)
         E = self.eccentric_anomaly(M)
-        f = round(self.true_anomaly(E), 5)
-        print(f)
+        f = self.true_anomaly(E)
 
-        return f
+        return round(f, 5)
 
