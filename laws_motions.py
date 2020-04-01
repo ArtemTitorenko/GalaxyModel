@@ -79,7 +79,7 @@ class EllipticalKeplersMotion(LawMotion):
     def rotation(self, time: float = 0):
         M = self.mean_anomaly(time)
         E = self.eccentric_anomaly(M)
-        f = self.true_anomaly(E)
+        f = round(self.true_anomaly(E), 5)
 
         return round(f, 5)
 
