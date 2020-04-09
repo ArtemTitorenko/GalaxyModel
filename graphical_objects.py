@@ -5,7 +5,6 @@ from PyQt5.QtCore import QPointF, Qt, QRectF
 from PyQt5.QtGui import QBrush, QPen, QColor
 
 
-
 class EllipticalObject(QGraphicsEllipseItem):
 
     def __init__(self,
@@ -17,8 +16,6 @@ class EllipticalObject(QGraphicsEllipseItem):
         self.eccentricity = eccentricity
         self.s_major_axis = s_major_axis
         self.s_minor_axis = self.compute_minor_axis() // 2
-
-        self.setTransformOriginPoint(self.s_major_axis, self.s_minor_axis)
 
         self.init_rect()
 
@@ -46,33 +43,41 @@ class EllipticalObject(QGraphicsEllipseItem):
 class EllipticalOrbit(EllipticalObject):
 
     def __init__(self,
-            center: EllipticalObject,
-            elliptical_object: EllipticalObject,
             eccentricity: float,
             s_major_axis: float):
 
         EllipticalObject.__init__(self, eccentricity, s_major_axis)
 
-        self.center = center
-        self.elliptical_object = elliptical_object
+        center_size = 0.1 * s_major_axis
+        planet_size = 0.05 * s_major_axis
+        circle_eccentricity = 0
+
+        self.center = EllipticalObject(circle_eccentricity, center_size, parent=self)
+        self.planet = EllipticalObject(circle_eccentricity, planet_size, parent=self)
+
         self.linear_eccentricity = self.compute_linear_eccentricity()
 
-        self.config_parent_items()
-        self.init_pos()
+        self.init_positions()
         self.init_line_apsid()
-
-    def config_parent_items(self):
-        self.setParentItem(self.center)
-        self.elliptical_object.setParentItem(self.center)
 
     def compute_linear_eccentricity(self):
         a, b = self.s_major_axis, self.s_minor_axis
         return a * self.eccentricity
 
-    def init_pos(self):
-        dx = self.center.s_major_axis - self.linear_eccentricity
-        dy = self.center.s_minor_axis
-        self.set_center_pos(QPointF(dx, dy))
+    def init_positions(self):
+        dx = self.s_major_axis + self.linear_eccentricity
+        dy = self.s_minor_axis
+
+        self.center.set_center_pos(QPointF(dx, dy))
+        self.setTransformOriginPoint(QPointF(dx, dy))
+
+    def set_center_pos(self, position: QPointF):
+        dx = self.s_major_axis + self.linear_eccentricity
+        dy = self.s_minor_axis
+        QGraphicsEllipseItem.setPos(self, position - QPointF(dx, dy))
+
+    def center_pos(self):
+        return self.center.center_pos()
 
     def init_line_apsid(self):
         line = QGraphicsLineItem()

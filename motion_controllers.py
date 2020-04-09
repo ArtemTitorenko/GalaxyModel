@@ -9,13 +9,13 @@ from PyQt5.QtCore import QPointF
 
 class MotionController(ABC):
 
-    def __init__(self, graphical_object: QGraphicsItem):
-        self.graphical_object = graphical_object
-
     @abstractmethod
     def motion(self, time: float):
         pass
 
+    @abstractmethod
+    def set_start_position(self):
+        pass
 
 class CircularMotionController(MotionController):
 
@@ -24,15 +24,14 @@ class CircularMotionController(MotionController):
                  period: float,
                  start_rotation: float = 0):
 
-        MotionController.__init__(self, graphical_object)
-
+        self.graphical_object = graphical_object
         self.period = period
         self.law_motion = CircularMotion(self.period,
                                          math.radians(start_rotation))
 
-        self.set_start_rotation()
+        self.set_start_position()
 
-    def set_start_rotation(self):
+    def set_start_position(self):
         self.motion(0)
 
     def motion(self, time: float):
@@ -43,28 +42,22 @@ class CircularMotionController(MotionController):
 class KeplersMotionController(MotionController):
 
     def __init__(self,
-                 elliptical_orbit: EllipticalOrbit,
+                 orbit: EllipticalOrbit,
                  period: float,
                  start_rotation: float = 0):
 
-        self.center = elliptical_orbit.center
-        self.center_pos = QPointF(self.center.s_major_axis,
-                                  self.center.s_minor_axis)
+        self.center_pos = orbit.center_pos()
+        self.graphical_object = orbit.planet
 
-        elliptical_object = elliptical_orbit.elliptical_object
-        MotionController.__init__(self, elliptical_object)
-
-        s_major_axis = elliptical_orbit.s_major_axis
-        eccentricity = elliptical_orbit.eccentricity
-        start_rotation = math.radians(start_rotation)
-
+        s_major_axis = orbit.s_major_axis
+        eccentricity = orbit.eccentricity
         self.law_motion = EllipticalKeplersMotion(period,
                                                   s_major_axis,
                                                   eccentricity,
-                                                  start_rotation)
-        self.set_start_rotation()
+                                                  math.radians(start_rotation))
+        self.set_start_position()
 
-    def set_start_rotation(self):
+    def set_start_position(self):
         self.motion(0)
 
     def motion(self, time: float):
@@ -76,4 +69,7 @@ class KeplersMotionController(MotionController):
 
         pos = self.center_pos + QPointF(x, y)
         self.graphical_object.set_center_pos(pos)
+
+        return r, rotation
+
 
