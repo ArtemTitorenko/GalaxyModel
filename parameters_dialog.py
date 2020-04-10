@@ -1,5 +1,7 @@
+from collections import defaultdict
+
 from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QDialog
@@ -7,9 +9,16 @@ from PyQt5.QtWidgets import QDialog
 
 class ParameterField(QWidget):
 
-    def __init__(self, name: str, value: float, title: str = None, parent=None):
+    def __init__(self,
+                 group: str,
+                 name: str,
+                 value: float,
+                 title: str = None,
+                 parent=None):
+
         QWidget.__init__(self, parent=parent)
 
+        self.group = group
         self.name = name
         self.title = title if title else self.name
         self.value = value
@@ -56,25 +65,47 @@ class ParametersDialog(QWidget):
     def __init__(self, parameters: dict, parent=None):
         QWidget.__init__(self, parent=parent)
 
-        self.parameters_values = parameters.copy()
+        self.parameters = parameters.copy()
         self.parameters_fields = []
 
         self.setWindowFlag(QtCore.Qt.Dialog)
         self.init_ui()
 
     def init_ui(self):
-        vbox = QVBoxLayout()
+        main_box = QVBoxLayout()
 
-        for name, value in self.parameters_values.items():
-            parameter_field = ParameterField(name, value)
-            self.parameters_fields.append(parameter_field)
-            vbox.addWidget(parameter_field)
+        parameters_groups_box = QHBoxLayout()
+        for group, parameters_group in self.parameters.items():
+            group_box = self.group_vbox(group, parameters_group)
+            parameters_groups_box.addWidget(group_box)
+
+        main_box.addLayout(parameters_groups_box)
+
+        buttons_box = QHBoxLayout()
 
         button_ok = QPushButton('Окей')
         button_ok.clicked.connect(self.clicked_ok)
+        buttons_box.addWidget(button_ok)
 
-        vbox.addWidget(button_ok)
-        self.setLayout(vbox)
+        button_cancel = QPushButton('Отмена')
+        button_cancel.clicked.connect(self.close)
+        buttons_box.addWidget(button_cancel)
+
+        main_box.addLayout(buttons_box)
+        self.setLayout(main_box)
+
+    def group_vbox(self, group: str, parameters: dict):
+        group_box = QGroupBox(group)
+        box_layout = QVBoxLayout()
+
+        for name, value in parameters.items():
+            parameter_field = ParameterField(group, name, value)
+            self.parameters_fields.append(parameter_field)
+            box_layout.addWidget(parameter_field)
+        group_box.setLayout(box_layout)
+
+        return group_box
+
 
     def clicked_ok(self):
         new_parameters = self.processing_parameters()
@@ -82,14 +113,14 @@ class ParametersDialog(QWidget):
         self.close()
 
     def processing_parameters(self):
-        new_parameters = {}
+        new_parameters = defaultdict(dict)
         for parameter in self.parameters_fields:
-            name, value = parameter.name, parameter.value
-            curr_value = self.parameters_values[name]
+            group, name, value = parameter.group, parameter.name, parameter.value
+            curr_value = self.parameters[group][name]
 
             if curr_value != value:
-                self.parameters_values[name] = value
-                new_parameters[name] = value
+                self.parameters[group][name] = value
+                new_parameters[group][name] = value
 
         return new_parameters
 

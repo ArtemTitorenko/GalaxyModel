@@ -4,8 +4,11 @@ from PyQt5.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PyQt5.QtCore import QPointF, Qt, QRectF
 from PyQt5.QtGui import QBrush, QPen, QColor
 
+from .motion_controllers import KeplersMotionController
+from .motion_controllers import CircularMotionController
 
-class EllipticalObject(QGraphicsEllipseItem):
+
+class EllipticalItem(QGraphicsEllipseItem):
 
     def __init__(self,
             eccentricity: float,
@@ -40,20 +43,20 @@ class EllipticalObject(QGraphicsEllipseItem):
         QGraphicsEllipseItem.setPos(self, center_pos - QPointF(dx, dy))
 
 
-class EllipticalOrbit(EllipticalObject):
+class EllipticalOrbitItem(EllipticalItem):
 
     def __init__(self,
             eccentricity: float,
             s_major_axis: float):
 
-        EllipticalObject.__init__(self, eccentricity, s_major_axis)
+        EllipticalItem.__init__(self, eccentricity, s_major_axis)
 
         center_size = 0.1 * s_major_axis
-        planet_size = 0.05 * s_major_axis
+        sun_size = 0.05 * s_major_axis
         circle_eccentricity = 0
 
-        self.center = EllipticalObject(circle_eccentricity, center_size, parent=self)
-        self.planet = EllipticalObject(circle_eccentricity, planet_size, parent=self)
+        self.center = EllipticalItem(circle_eccentricity, center_size, parent=self)
+        self.sun = EllipticalItem(circle_eccentricity, sun_size, parent=self)
 
         self.linear_eccentricity = self.compute_linear_eccentricity()
 
@@ -84,4 +87,43 @@ class EllipticalOrbit(EllipticalObject):
         line.setParentItem(self)
         line.setLine(0, self.s_minor_axis,
                      2 * self.s_major_axis, self.s_minor_axis)
+
+
+class EllipticalOrbit:
+
+    def __init__(self,
+                 parameters: dict,
+                 scale: int):
+
+        eccentricity = parameters.get('eccentricity')
+        s_major_axis = parameters.get('s_major_axis')
+        sun_period = parameters.get('sun_period')
+        orbit_period = parameters.get('orbit_period')
+        sun_rotation = parameters.get('sun_rotation')
+        orbit_rotation = parameters.get('orbit_rotation')
+
+        self.item = EllipticalOrbitItem(eccentricity, s_major_axis * scale)
+
+        self.contoller = CircularMotionController(self.item,
+                                                  orbit_period,
+                                                  orbit_rotation)
+
+        self.sun_controller = KeplersMotionController(self.item,
+                                                      sun_period,
+                                                      sun_rotation)
+        self.item.set_center_pos(QPointF(0, 0))
+
+    def restart(self):
+        self.contoller.restart()
+        self.sun_controller.restart()
+
+    def motion(self, time: float):
+        self.contoller.motion(time)
+        self.sun_controller.motion(time)
+
+    def sun_distance(self, time: float):
+        return self.sun_controller.sun_distance(time)
+
+    def sun_rotation(self, time: float):
+        return self.sun_controller.sun_rotation(time)
 

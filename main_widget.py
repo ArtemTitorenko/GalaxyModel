@@ -1,9 +1,11 @@
 import os
+import json
 
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-from explorer import Explorer
+
+from explorer.widget import ExplorerWidget
 from parameters_dialog import ParametersDialog
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +17,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.parameters = parameters
         self.scale = scale
-        self.explorer = Explorer(self.parameters, self.scale)
+        self.explorer = ExplorerWidget(self.parameters, self.scale)
 
         self.parameters_dialog = ParametersDialog(self.parameters)
         self.parameters_dialog.updated_parameters[dict].connect(self.explorer.update_parameters)
@@ -53,7 +55,10 @@ class MainWindow(QtWidgets.QMainWindow):
         update_parameters.triggered.connect(self.open_parameters_dialog)
 
         save_parameters = parameters_menu.addAction('Сохранить')
+        save_parameters.triggered.connect(self.save_parameters)
+
         load_parameters = parameters_menu.addAction('Загрузить')
+        load_parameters.triggered.connect(self.load_parameters)
 
         plot_menu = menu.addMenu('График')
 
@@ -65,4 +70,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def open_parameters_dialog(self):
         self.parameters_dialog.show()
+
+    def load_parameters(self):
+        new_parameters = None
+        file_ = QtWidgets.QFileDialog.getOpenFileName(parent=self,
+                                                      caption='Выберите файл',
+                                                      filter='*.json')
+        file_path = file_[0]
+        if file_path and file_path.endswith('.json'):
+            with open(file_path, 'r') as f:
+                new_parameters = json.load(f)
+                self.explorer.update_parameters(new_parameters)
+
+    def save_parameters(self):
+        file_ = QtWidgets.QFileDialog.getSaveFileName(parent=self,
+                                                      filter='*.json',
+                                                      initialFilter='untitled.json')
+        if file_[0]:
+            file_path = '{}.json'.format(file_[0])
+            with open(file_path, 'w') as f:
+                json.dump(self.parameters, f)
 

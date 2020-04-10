@@ -1,10 +1,9 @@
 import math
-
 from abc import ABC, abstractmethod
-from graphical_objects import EllipticalObject, EllipticalOrbit
-from laws_motions import CircularMotion, EllipticalKeplersMotion
 from PyQt5.QtWidgets import QGraphicsItem
 from PyQt5.QtCore import QPointF
+
+from .laws_motions import CircularMotion, EllipticalKeplersMotion
 
 
 class MotionController(ABC):
@@ -14,7 +13,7 @@ class MotionController(ABC):
         pass
 
     @abstractmethod
-    def set_start_position(self):
+    def restart(self):
         pass
 
 class CircularMotionController(MotionController):
@@ -29,9 +28,9 @@ class CircularMotionController(MotionController):
         self.law_motion = CircularMotion(self.period,
                                          math.radians(start_rotation))
 
-        self.set_start_position()
+        self.restart()
 
-    def set_start_position(self):
+    def restart(self):
         self.motion(0)
 
     def motion(self, time: float):
@@ -42,12 +41,12 @@ class CircularMotionController(MotionController):
 class KeplersMotionController(MotionController):
 
     def __init__(self,
-                 orbit: EllipticalOrbit,
+                 orbit,
                  period: float,
                  start_rotation: float = 0):
 
         self.center_pos = orbit.center_pos()
-        self.graphical_object = orbit.planet
+        self.graphical_object = orbit.sun
 
         s_major_axis = orbit.s_major_axis
         eccentricity = orbit.eccentricity
@@ -55,14 +54,14 @@ class KeplersMotionController(MotionController):
                                                   s_major_axis,
                                                   eccentricity,
                                                   math.radians(start_rotation))
-        self.set_start_position()
+        self.restart()
 
-    def set_start_position(self):
+    def restart(self):
         self.motion(0)
 
     def motion(self, time: float):
-        r = self.law_motion.r(time)
-        rotation = self.law_motion.rotation(time)
+        r = self.sun_distance(time)
+        rotation = self.sun_rotation(time)
 
         x = r * math.cos(rotation)
         y = r * math.sin(rotation)
@@ -70,6 +69,11 @@ class KeplersMotionController(MotionController):
         pos = self.center_pos + QPointF(x, y)
         self.graphical_object.set_center_pos(pos)
 
-        return r, rotation
+    def sun_distance(self, time: float):
+        r = self.law_motion.r(time)
+        return r
 
+    def sun_rotation(self, time: float):
+        rotation = self.law_motion.rotation(time)
+        return rotation
 

@@ -1,7 +1,6 @@
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QPointF
 
-
 class SceneWithGrid(QtWidgets.QGraphicsScene):
 
     def __init__(self, *args, **kwargs):
