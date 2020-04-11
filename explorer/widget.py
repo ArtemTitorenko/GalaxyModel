@@ -1,10 +1,11 @@
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QBasicTimer, QPointF, pyqtSlot
+from PyQt5.QtGui import QPainter
 
-from .graphical_objects.orbit import EllipticalOrbit
+from .graphical_items.orbit import Orbit
 from .scene import SceneWithGrid
-from .graphical_objects.spirals import SystemArchimedeanSpirals
-from .graphical_objects.spirals import SystemLogarithmicSpirals
+from .graphical_items.spirals import SystemArchimedeanSpirals
+from .graphical_items.spirals import SystemLogarithmicSpirals
 
 
 class ExplorerWidget(QtWidgets.QWidget):
@@ -30,6 +31,7 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.scene.set_scale(scale)
 
         self.view = QtWidgets.QGraphicsView(self.scene)
+        #self.view.setRenderHint(QPainter.Antialiasing)
 
         self.init_ui()
         self.update_graphical_objects()
@@ -80,8 +82,8 @@ class ExplorerWidget(QtWidgets.QWidget):
 
     def add_orbit(self):
         orbit_parameters = self.parameters['orbit']
-        self.orbit = EllipticalOrbit(orbit_parameters, self.scale)
-        self.scene.addItem(self.orbit.item)
+        self.orbit = Orbit(orbit_parameters, self.scale)
+        self.scene.addItem(self.orbit.item())
 
     def add_log_spirals(self):
         self.log_spirals = SystemLogarithmicSpirals(self.parameters['log_spirals'], self.scale)
@@ -89,7 +91,10 @@ class ExplorerWidget(QtWidgets.QWidget):
             self.scene.addItem(spiral)
 
     def add_arch_spirals(self):
-        self.arch_spirals = SystemArchimedeanSpirals(self.parameters['arch_spirals'], self.scale)
+        radius_center = self.orbit.item().radius_center()
+        self.arch_spirals = SystemArchimedeanSpirals(self.parameters['arch_spirals'],
+                                                     self.scale,
+                                                     radius_center)
         for spiral in self.arch_spirals.items():
             self.scene.addItem(spiral)
 

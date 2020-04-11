@@ -19,11 +19,11 @@ class MotionController(ABC):
 class CircularMotionController(MotionController):
 
     def __init__(self,
-                 graphical_object: QGraphicsItem,
+                 item: QGraphicsItem,
                  period: float,
                  start_rotation: float = 0):
 
-        self.graphical_object = graphical_object
+        self.graphical_object = item
         self.period = period
         self.law_motion = CircularMotion(self.period,
                                          math.radians(start_rotation))
@@ -41,12 +41,13 @@ class CircularMotionController(MotionController):
 class KeplersMotionController(MotionController):
 
     def __init__(self,
+                 item: QGraphicsItem,
                  orbit,
                  period: float,
                  start_rotation: float = 0):
 
-        self.center_pos = orbit.center_pos()
-        self.graphical_object = orbit.sun
+        self.center_pos = orbit.local_center_pos()
+        self.graphical_object = item
 
         s_major_axis = orbit.s_major_axis
         eccentricity = orbit.eccentricity

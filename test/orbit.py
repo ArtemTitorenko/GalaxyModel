@@ -51,12 +51,15 @@ class EllipticalOrbitItem(EllipticalItem):
 
         EllipticalItem.__init__(self, eccentricity, s_major_axis)
 
-        center_size = 0.1 * s_major_axis
-        sun_size = 0.05 * s_major_axis
+        center_size = s_major_axis // 20
+        sun_size = s_major_axis // 20
+
         circle_eccentricity = 0
 
         self.center = EllipticalItem(circle_eccentricity, center_size, parent=self)
+        self.center.setBrush(QBrush(Qt.black))
         self.sun = EllipticalItem(circle_eccentricity, sun_size, parent=self)
+        self.sun.setBrush(QBrush(Qt.red))
 
         self.linear_eccentricity = self.compute_linear_eccentricity()
 

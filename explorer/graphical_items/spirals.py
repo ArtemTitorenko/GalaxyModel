@@ -1,18 +1,12 @@
-from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsLineItem
-from PyQt5.QtCore import Qt, QPointF
-from PyQt5.QtGui import QColor, QPen
+from PyQt5.QtWidgets import QGraphicsItem
+from PyQt5.QtCore import Qt, QPointF, QRectF
+from PyQt5.QtGui import QColor, QPen, QPainter, QPolygonF
 
 from math import pi, cos, sin, exp, radians, degrees
 from .motion_controllers import CircularMotionController
 
-def drange(start, stop, step):
-    val = start
-    while val < stop:
-        yield val
-        val += step
 
-
-class BaseSpiral(QGraphicsRectItem):
+class BaseSpiral(QGraphicsItem):
 
     def __init__(self,
                  color: QColor = Qt.black,
@@ -23,49 +17,62 @@ class BaseSpiral(QGraphicsRectItem):
         self.color = color
         self.thickness = thickness
 
-        self.height = 2000
-        self.width = 2000
+        self.height = 800
+        self.width = 800
 
-        self.setRect(0, 0, self.width, self.height)
         self.set_center_pos(QPointF(0, 0))
 
     def set_center_pos(self, center: QPointF):
-        dx = self.width // 2
-        dy = self.height // 2
+        dx = self.width / 2
+        dy = self.height / 2
 
         self.setTransformOriginPoint(QPointF(dx, dy))
         super().setPos(center - QPointF(dx, dy))
 
-    def add_line(self, x0, y0, x1, y1):
-        line = QGraphicsLineItem(self)
-        line.setPen(QPen(self.color))
-        line.setLine(x0, y0, x1, y1)
+    def set_size(self, width: int, height: int):
+        self.width = width
+        self.height = height
+
+    def paint(self, painter, options, widget=None):
+        pass
+
+    def boundingRect(self):
+        return QRectF(0, 0, self.width, self.height)
+
 
 class ArchimedeanSpiral(BaseSpiral):
 
     def __init__(self,
                  ro: float,
+                 radius: float = 0,
                  color: QColor = Qt.black,
                  thickness: int = 2):
 
         super().__init__(color, thickness)
 
         self.ro = ro
-        self.create_spiral()
+        self.radius = radius
 
-    def create_spiral(self):
-        X0 = self.width // 2
-        Y0 = self.height // 2
+    def paint(self, painter, options, widget=None):
+        points = []
 
-        prev_x, prev_y = X0, Y0
-        for fi in drange(0, 5.5, 0.05):
-            r = self.ro * fi
+        X0, Y0 = self.width / 2, self.height / 2 - self.radius
+        rotation, step_rotation = 0, 0.05
+        while True:
+            r = self.ro * rotation
 
-            x = X0 + r * cos(fi)
-            y = Y0 - r * sin(fi)
+            x = X0 + r * cos(rotation)
+            y = Y0 + r * sin(rotation)
 
-            self.add_line(prev_x, prev_y, x, y)
-            prev_x, prev_y = x, y
+            if x > self.width or x < 0:
+                break
+            if y > self.height or y < 0:
+                break
+
+            rotation += step_rotation
+            points.append(QPointF(x, y))
+
+        painter.drawPolyline(QPolygonF(points))
 
 class LogarithmicSpiral(BaseSpiral):
 
@@ -81,28 +88,36 @@ class LogarithmicSpiral(BaseSpiral):
         self.r0 = r0
         self.spiral_width = spiral_width
 
-        self.create_spiral(self.r0, self.alpha, spiral_width // 2)
-        self.create_spiral(self.r0, self.alpha, 0)
-        self.create_spiral(self.r0, self.alpha, -spiral_width // 2)
+    def paint(self, painter, options, widget):
+        self._paint_spiral(painter, self.alpha, self.spiral_width / 2)
+        self._paint_spiral(painter, self.alpha, 0)
+        self._paint_spiral(painter, self.alpha, -self.spiral_width / 2)
 
+    def _paint_spiral(self, painter, alpha: float, delta: int = 0):
+        points = []
 
-    def create_spiral(self, r0, alpha, delta: int = 0):
-        X0 = self.width // 2
-        Y0 = self.height // 2
+        X0, Y0 = self.width / 2, self.height / 2
+        rotation, step_rotation = 0, 0.05
+        while True:
+            r = self.r0 * exp(alpha *  rotation) + delta
 
-        prev_x, prev_y = X0, Y0
-        for fi in drange(0, 6.5, 0.05):
-            r = r0 * exp(alpha * fi) + delta
+            x = X0 + r * cos(rotation)
+            y = Y0 + r * sin(rotation)
 
-            x = X0 + r * cos(fi)
-            y = Y0 - r * sin(fi)
+            if x > self.width or x < 0:
+                break
+            if y > self.height or y < 0:
+                break
 
-            self.add_line(prev_x, prev_y, x, y)
-            prev_x, prev_y = x, y
+            rotation += step_rotation
+            points.append(QPointF(x, y))
+
+        painter.drawPolyline(QPolygonF(points))
+
 
 class SystemArchimedeanSpirals(BaseSpiral):
 
-    def __init__(self, parameters: dict, scale: int):
+    def __init__(self, parameters: dict, scale: int, radius: float = 0):
         ro = parameters.get('ro')
         period = parameters.get('period')
         rotation = parameters.get('rotation')
@@ -113,7 +128,7 @@ class SystemArchimedeanSpirals(BaseSpiral):
         count_spirals = 2
         rotation_step = 180
         for i in range(count_spirals):
-            spiral = ArchimedeanSpiral(ro * scale)
+            spiral = ArchimedeanSpiral(ro * scale, radius)
             controller = CircularMotionController(spiral,
                                                   period,
                                                   rotation + rotation_step * i)
