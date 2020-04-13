@@ -69,7 +69,7 @@ class EllipticalKeplersMotion(LawMotion):
         f = 2 * math.atan(tmp * math.tan(E / 2))
         return f
 
-    def r(self, time: float = 0):
+    def distance(self, time: float = 0):
         M = self.mean_anomaly(time)
         E = self.eccentric_anomaly(M)
         a, e = self.s_major_axis, self.eccentricity
@@ -82,4 +82,11 @@ class EllipticalKeplersMotion(LawMotion):
         f = round(self.true_anomaly(E), 5)
 
         return round(f, 5)
+
+    def full_rotation(self, time: float):
+        rotation = math.degrees(self.rotation(time))
+        if rotation < 0:
+            rotation += 360
+        rotation = rotation + (time - self.tau) // self.period * 360
+        return rotation
 

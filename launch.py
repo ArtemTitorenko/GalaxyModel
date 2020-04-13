@@ -8,12 +8,12 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     parameters = {
             'orbit': {
-                's_major_axis': 8.44,
+                's_major_axis': 8.45,
                 'eccentricity': 0.36,
-                'orbit_period': 300,
+                'orbit_period': 2000,
                 'sun_period': 250,
-                'orbit_rotation': 10,
-                'sun_rotation': 90,
+                'orbit_rotation': -10,
+                'sun_rotation': 100,
             },
 
             'log_spirals': {

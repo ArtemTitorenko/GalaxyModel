@@ -6,56 +6,125 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QApplication, QGraphicsLineIte
 from PyQt5.QtGui import QPainter, QColor, QPen, QPainterPath, QPolygonF
 from PyQt5.QtCore import Qt, QPointF, QSizeF, QRectF
 
+class BaseSpiral(QGraphicsItem):
 
-class Spiral(QGraphicsItem):
+    def __init__(self,
+                 color: QColor = Qt.black,
+                 thickness: int = 2):
 
-    def __init__(self, ro: float, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ro = ro
-        self.width = 500
-        self.height = 500
+        super().__init__()
 
-        self.set_center_pos(QPointF(0, 0))
+        self.color = color
+        self.thickness = thickness
+
+        self.height = 800
+        self.width = 800
+
+        self.setPos(QPointF(0, 0))
 
     def boundingRect(self):
         return QRectF(0, 0, self.width, self.height)
 
-    def set_size(self, width, height):
+    def setPos(self, pos: QPointF):
+        dx = self.width / 2
+        dy = self.height / 2
+
+        super().setPos(pos - QPointF(dx, dy))
+
+    def pos(self):
+        dx = self.width / 2
+        dy = self.height / 2
+
+        return self.pos() + QPointF(dx, dy)
+
+    def set_size(self, width: int, height: int):
         self.width = width
         self.height = height
 
-    def paint(self, painter, option, widget=None):
-        painter.setRenderHint(QPainter.Antialiasing)
+        self.setTransFormOriginPoint(QPointF(width / 2, height / 2))
 
-        X0 = self.width // 2
-        Y0 = self.height // 2
+    def paint(self, painter, options, widget=None):
+        pass
+
+
+class ArchimedeanSpiral(BaseSpiral):
+
+    def __init__(self,
+                 ro: float,
+                 radius: float = 0,
+                 color: QColor = Qt.black,
+                 thickness: int = 2):
+
+        super().__init__(color, thickness)
+
+        self.ro = ro
+        self.radius = radius
+
+    def paint(self, painter, options, widget=None):
+        x = self.width / 2
+        y = self.height / 2 - self.radius
+        painter.translate(QPointF(self.width / 2, self.height / 2 - self.radius))
 
         points = []
-        rotation, step_rotation = 0, 0.01
+        rotation, step_rotation = 0, 0.05
         while True:
             r = self.ro * rotation
-            x = X0 + r * math.cos(rotation)
-            y = Y0 - r * math.sin(rotation)
+
+            x = r * math.cos(rotation)
+            y = r * math.sin(rotation)
+
+            if x > self.width / 2 or x < -self.width / 2:
+                break
+            if y > self.height / 2  or y < -self.height / 2:
+                break
 
             rotation += step_rotation
-
-            if x > self.width or x < 0:
-                break
-
-            if y > self.height or y < 0:
-                break
-
             points.append(QPointF(x, y))
 
         painter.drawPolyline(QPolygonF(points))
-        painter.drawRect(0, 0, self.width, self.height)
 
-    def set_center_pos(self, center: QPointF):
-        dx = self.width // 2
-        dy = self.height // 2
+class LogarithmicSpiral(BaseSpiral):
 
-        self.setTransformOriginPoint(QPointF(dx, dy))
-        super().setPos(center - QPointF(dx, dy))
+    def __init__(self,
+                 alpha: float,
+                 r0: float,
+                 spiral_width: int,
+                 color: QColor = Qt.black,
+                 thickness: int = 2):
+
+        super().__init__(color, thickness)
+        self.alpha = alpha
+        self.r0 = r0
+        self.spiral_width = spiral_width
+
+    def paint(self, painter, options, widget):
+        x, y = self.width / 2, self.height / 2
+        painter.translate(QPointF(x, y))
+
+        self._paint_spiral(painter, self.alpha, self.spiral_width / 2)
+        self._paint_spiral(painter, self.alpha, 0)
+        self._paint_spiral(painter, self.alpha, -self.spiral_width / 2)
+
+    def _paint_spiral(self, painter, alpha: float, delta: int = 0):
+        points = []
+
+        rotation, step_rotation = 0, 0.05
+        while True:
+            r = self.r0 * math.exp(alpha *  rotation) + delta
+
+            x = r * math.cos(rotation)
+            y = r * math.sin(rotation)
+
+            if x > self.width / 2 or x < -self.width / 2:
+                break
+            if y > self.height / 2 or y < -self.height / 2:
+                break
+
+            rotation += step_rotation
+            points.append(QPointF(x, y))
+
+        painter.drawPolyline(QPolygonF(points))
+
 
 class MyWidget(QWidget):
 
@@ -82,7 +151,8 @@ class MyWidget(QWidget):
         self.scene.addItem(line_y)
 
     def add_spiral(self):
-        spiral = Spiral(ro=2.48 * 20)
+        spiral = LogarithmicSpiral(0.215, 10, 5)
+        spiral.setPos(QPointF(10, 10))
         self.scene.addItem(spiral)
 
 if __name__ == '__main__':

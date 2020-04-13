@@ -1,43 +1,52 @@
+import math
+
 from PyQt5.QtWidgets import QGraphicsItem
 from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtGui import QColor, QPen, QPainter, QPolygonF
-
-from math import pi, cos, sin, exp, radians, degrees
-from .motion_controllers import CircularMotionController
 
 
 class BaseSpiral(QGraphicsItem):
 
     def __init__(self,
                  color: QColor = Qt.black,
-                 thickness: int = 2):
+                 thickness: int = 2,
+                 *args, **kwargs):
 
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
-        self.color = color
-        self.thickness = thickness
+        self.pen = QPen()
+        self.pen.setWidth(thickness)
+        self.pen.setColor(color)
 
         self.height = 800
         self.width = 800
 
-        self.set_center_pos(QPointF(0, 0))
+        self.setPos(QPointF(0, 0))
+        self._update_origin_point()
 
-    def set_center_pos(self, center: QPointF):
+    def _update_origin_point(self):
+        self.setTransformOriginPoint(QPointF(self.width / 2, self.height / 2))
+
+    def boundingRect(self):
+        return QRectF(0, 0, self.width, self.height)
+
+    def setPos(self, pos: QPointF):
         dx = self.width / 2
         dy = self.height / 2
+        super().setPos(pos - QPointF(dx, dy))
 
-        self.setTransformOriginPoint(QPointF(dx, dy))
-        super().setPos(center - QPointF(dx, dy))
+    def pos(self):
+        dx = self.width / 2
+        dy = self.height / 2
+        return self.pos() + QPointF(dx, dy)
 
     def set_size(self, width: int, height: int):
         self.width = width
         self.height = height
+        self._update_origin_point()
 
     def paint(self, painter, options, widget=None):
-        pass
-
-    def boundingRect(self):
-        return QRectF(0, 0, self.width, self.height)
+        painter.setPen(self.pen)
 
 
 class ArchimedeanSpiral(BaseSpiral):
@@ -46,27 +55,32 @@ class ArchimedeanSpiral(BaseSpiral):
                  ro: float,
                  radius: float = 0,
                  color: QColor = Qt.black,
-                 thickness: int = 2):
+                 thickness: int = 2,
+                 *args, **kwargs):
 
-        super().__init__(color, thickness)
+        super().__init__(color, thickness, *args, **kwargs)
 
         self.ro = ro
         self.radius = radius
 
     def paint(self, painter, options, widget=None):
-        points = []
+        super().paint(painter, options, widget)
 
-        X0, Y0 = self.width / 2, self.height / 2 - self.radius
+        x = self.width / 2
+        y = self.height / 2 - self.radius
+        painter.translate(QPointF(self.width / 2, self.height / 2 - self.radius))
+
+        points = []
         rotation, step_rotation = 0, 0.05
         while True:
             r = self.ro * rotation
 
-            x = X0 + r * cos(rotation)
-            y = Y0 + r * sin(rotation)
+            x = r * math.cos(rotation)
+            y = r * math.sin(rotation)
 
-            if x > self.width or x < 0:
+            if x > self.width / 2 or x < -self.width / 2:
                 break
-            if y > self.height or y < 0:
+            if y > self.height / 2 or y < -self.height / 2:
                 break
 
             rotation += step_rotation
@@ -81,32 +95,37 @@ class LogarithmicSpiral(BaseSpiral):
                  r0: float,
                  spiral_width: int,
                  color: QColor = Qt.black,
-                 thickness: int = 2):
+                 thickness: int = 2,
+                 *args, **kwargs):
 
-        super().__init__(color, thickness)
+        super().__init__(color, thickness, *args, **kwargs)
+
         self.alpha = alpha
         self.r0 = r0
         self.spiral_width = spiral_width
 
     def paint(self, painter, options, widget):
+        super().paint(painter, options, widget)
+
+        x, y = self.width / 2, self.height / 2
+        painter.translate(QPointF(x, y))
+
         self._paint_spiral(painter, self.alpha, self.spiral_width / 2)
         self._paint_spiral(painter, self.alpha, 0)
         self._paint_spiral(painter, self.alpha, -self.spiral_width / 2)
 
     def _paint_spiral(self, painter, alpha: float, delta: int = 0):
         points = []
-
-        X0, Y0 = self.width / 2, self.height / 2
         rotation, step_rotation = 0, 0.05
         while True:
-            r = self.r0 * exp(alpha *  rotation) + delta
+            r = self.r0 * math.exp(alpha *  rotation) + delta
 
-            x = X0 + r * cos(rotation)
-            y = Y0 + r * sin(rotation)
+            x = r * math.cos(rotation)
+            y = r * math.sin(rotation)
 
-            if x > self.width or x < 0:
+            if x > self.width / 2 or x < -self.width / 2:
                 break
-            if y > self.height or y < 0:
+            if y > self.height / 2 or y < -self.height / 2:
                 break
 
             rotation += step_rotation
@@ -117,31 +136,21 @@ class LogarithmicSpiral(BaseSpiral):
 
 class SystemArchimedeanSpirals(BaseSpiral):
 
-    def __init__(self, parameters: dict, scale: int, radius: float = 0):
-        ro = parameters.get('ro')
-        period = parameters.get('period')
-        rotation = parameters.get('rotation')
+    def __init__(self, ro: float, radius: float = 0):
 
         self.spirals = []
-        self.controllers = []
 
         count_spirals = 2
-        rotation_step = 180
+        self.rotation_step = 180
+        colors = [Qt.black, Qt.green]
         for i in range(count_spirals):
-            spiral = ArchimedeanSpiral(ro * scale, radius)
-            controller = CircularMotionController(spiral,
-                                                  period,
-                                                  rotation + rotation_step * i)
+            spiral = ArchimedeanSpiral(ro, radius, color=colors[i])
             self.spirals.append(spiral)
-            self.controllers.append(controller)
 
-    def motion(self, time: float):
-        for controller in self.controllers:
-            controller.motion(time)
-
-    def restart(self):
-        for controller in self.controllers:
-            controller.restart()
+    def set_rotation(self, rotation: float):
+        rotation = -math.degrees(rotation)
+        for num, spiral in enumerate(self.spirals):
+            spiral.setRotation(num * self.rotation_step + rotation)
 
     def items(self):
         return self.spirals
@@ -149,34 +158,22 @@ class SystemArchimedeanSpirals(BaseSpiral):
 
 class SystemLogarithmicSpirals(BaseSpiral):
 
-    def __init__(self, parameters: dict, scale: int):
-        alpha = parameters.get('alpha')
-        r0 = parameters.get('r0')
-        rotation = parameters.get('rotation')
-        period = parameters.get('period')
-        spiral_width = parameters.get('width')
+    def __init__(self, alpha: float, r0: float, width: float):
 
         self.spirals = []
-        self.controllers = []
 
         count_spirals = 4
-        rotation_step = 90
+        self.rotation_step = 90
+        colors = [Qt.yellow, Qt.black, Qt.red, Qt.blue]
         for i in range(count_spirals):
-            spiral = LogarithmicSpiral(alpha, r0 * scale, spiral_width * scale)
-            controller = CircularMotionController(spiral,
-                                                  period,
-                                                  rotation + i * rotation_step)
-
+            spiral = LogarithmicSpiral(alpha, r0, width, color=colors[i])
             self.spirals.append(spiral)
-            self.controllers.append(controller)
 
-    def motion(self, time: float):
-        for controller in self.controllers:
-            controller.motion(time)
-
-    def restart(self):
-        for controller in self.controllers:
-            controller.restart()
+    def set_rotation(self, rotation: float):
+        rotation = -math.degrees(rotation)
+        for num, spiral in enumerate(self.spirals):
+            spiral.setRotation(num * self.rotation_step + rotation)
 
     def items(self):
         return self.spirals
+

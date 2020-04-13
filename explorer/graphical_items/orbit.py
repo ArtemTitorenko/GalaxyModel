@@ -1,13 +1,12 @@
-import sys
 import math
+import sys
 
-from PyQt5.QtWidgets import QGraphicsItem
-from PyQt5.QtGui import QBrush
-from PyQt5.QtCore import Qt, QPointF, QRectF, QPoint
+from PyQt5.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
+from PyQt5.QtWidgets import QWidget, QApplication, QVBoxLayout
+from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView, QGraphicsItem
 
-from .motion_controllers import CircularMotionController
-from .motion_controllers import KeplersMotionController
-
+from PyQt5.QtCore import QPointF, Qt, QRectF
+from PyQt5.QtGui import QBrush, QPen, QColor
 
 def semi_minor_axis(eccentricity, s_major_axis):
     return s_major_axis * math.sqrt(1 - eccentricity ** 2)
@@ -28,24 +27,23 @@ class EllipticalItem(QGraphicsItem):
         self.s_minor_axis = semi_minor_axis(eccentricity, s_major_axis)
         self.linear_eccentricity = linear_eccentricity(eccentricity,
                                                        s_major_axis)
-        self.set_center_pos(QPointF(0, 0))
+        self.setPos(QPointF(0, 0))
 
     def boundingRect(self):
         return QRectF(0, 0, 2 * self.s_major_axis, 2 * self.s_minor_axis)
 
-    def set_center_pos(self, pos: QPointF):
+    def setPos(self, pos: QPointF):
         dx = self.s_major_axis + self.linear_eccentricity
         dy = self.s_minor_axis
-        self.setPos(pos - QPointF(dx, dy))
+        super().setPos(pos - QPointF(dx, dy))
 
-    def center_pos(self) -> QPointF:
-        dx = self.s_major_axis + self.linear_eccentricity
+    def pos(self):
+        dx = self.linear_eccentricity + self.s_major_axis
         dy = self.s_minor_axis
-        left_corner = self.pos()
-        return left_corner + QPointF(dx, dy)
+        return super().pos() + QPointF(dx, dy)
 
-    def local_center_pos(self) -> QPointF:
-        return QPointF(self.s_major_axis, self.s_minor_axis)
+    def paint(self, painter, options, widget=None):
+        pass
 
 
 class EllipticalOrbitItem(EllipticalItem):
@@ -59,35 +57,50 @@ class EllipticalOrbitItem(EllipticalItem):
                          s_major_axis,
                          *args, **kwargs)
 
-        self._radius_center = 15
-        origin_point = QPointF(self.s_major_axis + self.linear_eccentricity,
-                               self.s_minor_axis)
+        self.rotation = 0
+        self.distance = 0
 
-        self.setTransformOriginPoint(origin_point)
+        origin_pos = QPointF(self.s_major_axis + self.linear_eccentricity,
+                             self.s_minor_axis)
+        self.setTransformOriginPoint(origin_pos)
+
+        radius_sun = 10
+        self.sun = SunItem(radius_sun, parent=self)
+        self._radius_center_mass = 15
 
     def paint(self, painter, options, widget=None):
+        x, y = self.s_major_axis, self.s_minor_axis
+        painter.translate(QPointF(x, y))
+
         # orbit
-        geom_center = QPoint(self.s_major_axis, self.s_minor_axis)
-        painter.drawEllipse(geom_center, self.s_major_axis, self.s_minor_axis)
+        center_point = QPointF(0, 0)
+        painter.drawEllipse(center_point,
+                            self.s_major_axis,
+                            self.s_minor_axis)
 
         # line apside
-        p1 = QPointF(0, self.s_minor_axis)
-        p2 = QPointF(2 * self.s_major_axis, self.s_minor_axis)
+        p1 = QPointF(-self.s_major_axis, 0)
+        p2 = QPointF(self.s_major_axis, 0)
         painter.drawLine(p1, p2)
 
-        # center
-        color_center = Qt.black
-        painter.setBrush(color_center)
-        center_pos = QPoint(self.s_major_axis + self.linear_eccentricity,
-                            self.s_minor_axis)
-        painter.drawEllipse(center_pos, self._radius_center, self._radius_center)
+        # center_mass
+        color_center_mass = Qt.black
+        painter.setBrush(color_center_mass)
+        pos_center_mass = QPointF(self.linear_eccentricity, 0)
+        painter.drawEllipse(pos_center_mass,
+                            self._radius_center_mass,
+                            self._radius_center_mass)
+
+    def set_rotation(self, rotation: float):
+        # degrees
+        self.rotation = -math.degrees(rotation)
+        self.setRotation(self.rotation)
+
+    def set_distance(self, distance: float):
+        pass
 
     def radius_center(self):
-        return self._radius_center
-
-    def local_center_pos(self):
-        return QPointF(self.s_major_axis + self.linear_eccentricity,
-                       self.s_minor_axis)
+        return self._radius_center_mass
 
 
 class SunItem(EllipticalItem):
@@ -95,53 +108,34 @@ class SunItem(EllipticalItem):
     def __init__(self, radius: float, *args, **kwargs):
         super().__init__(0, radius, *args, **kwargs)
 
+        self.rotation = 0
+        self.distance = 0
+
+        self.setPos(QPointF(0, 0))
+
     def paint(self, painter, options, widget=None):
-        geom_center = QPoint(self.s_major_axis, self.s_minor_axis)
+        x, y = self.s_major_axis, self.s_minor_axis
+        painter.translate(QPointF(x, y))
+
         color_sun = Qt.red
         painter.setBrush(QBrush(color_sun))
-        painter.drawEllipse(geom_center, self.s_major_axis, self.s_minor_axis)
+        painter.drawEllipse(QPointF(0, 0), self.s_major_axis, self.s_minor_axis)
 
+    def setPos(self, pos: QPointF):
+        orbit = self.parentItem()
+        dx = orbit.s_major_axis + orbit.linear_eccentricity
+        dy = orbit.s_minor_axis
 
-class Orbit:
+        super().setPos(QPointF(dx, dy) + pos)
 
-    def __init__(self, parameters: dict, scale: int):
-        eccentricity = parameters.get('eccentricity')
-        s_major_axis = parameters.get('s_major_axis')
-        period_sun = parameters.get('sun_period')
-        period_orbit = parameters.get('orbit_period')
-        rotation_sun = parameters.get('sun_rotation')
-        rotation_orbit = parameters.get('orbit_rotation')
+    def set_rotation(self, rotation: float):
+        self.rotation = -rotation
 
-        self.orbit_item = EllipticalOrbitItem(eccentricity,
-                                              s_major_axis * scale)
-        radius_sun = 15
-        self.sun = SunItem(radius_sun, parent=self.orbit_item)
+    def set_distance(self, distance: float):
+        self.distance = distance
 
-        orbit_contoller = CircularMotionController(self.orbit_item,
-                                                   period_orbit,
-                                                   rotation_orbit)
-        sun_controller = KeplersMotionController(self.sun,
-                                                 self.orbit_item,
-                                                 period_sun,
-                                                 rotation_sun)
-        self.controllers = [orbit_contoller, sun_controller]
+        x = distance * math.cos(self.rotation)
+        y = distance * math.sin(self.rotation)
 
-    def item(self):
-        return self.orbit_item
-
-    def motion(self, time: float):
-        for controller in self.controllers:
-            controller.motion(time)
-
-    def restart(self):
-        for controller in self.controllers:
-            controller.restart()
-
-    def sun_distance(self):
-        sun = 1
-        return self.controllers[sun].sun_distance()
-
-    def sun_rotation(self):
-        sun = 1
-        return self.controllers[sun].sun_rotation()
+        self.setPos(QPointF(x, y))
 
