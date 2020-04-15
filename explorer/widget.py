@@ -11,10 +11,10 @@ from .laws_motions import EllipticalKeplersMotion
 from .laws_motions import CircularMotion
 
 from .scene import SceneWithGrid
+from .intersections_manager import IntersectionsManager
 
 from .graphical_items.spirals import SystemArchimedeanSpirals
 from .graphical_items.spirals import SystemLogarithmicSpirals
-from .graphical_items.spirals import ArchimedeanSpiral
 
 
 class ExplorerWidget(QtWidgets.QWidget):
@@ -43,7 +43,7 @@ class ExplorerWidget(QtWidgets.QWidget):
         self.view.setRenderHint(QPainter.Antialiasing)
 
         self.init_ui()
-        self.config_items()
+        self.settings_items()
 
         self.restart()
 
@@ -52,55 +52,71 @@ class ExplorerWidget(QtWidgets.QWidget):
         vbox.addWidget(self.view)
         self.setLayout(vbox)
 
-    def config_items(self):
-        self._config_orbit()
-        self._config_arch_spirals()
-        self._config_log_spirals()
+    def settings_items(self):
+        self.scene.clear()
 
-    def _config_orbit(self):
-        eccentricity = self.parameters['orbit']['eccentricity']
-        s_major_axis = self.parameters['orbit']['s_major_axis']
+        self._settings_orbit()
+        self._settings_arch_spirals()
+        self._settings_log_spirals()
+
+        self._manager = IntersectionsManager(self.parameters, self)
+
+    def _settings_orbit(self):
+        eccentricity = self.parameters['orbit']['eccentricity']['value']
+        s_major_axis = self.parameters['orbit']['s_major_axis']['value']
         self.orbit = EllipticalOrbitItem(eccentricity,
                                          s_major_axis * self.scale)
 
-        sun_period = self.parameters['orbit']['sun_period']
-        sun_rotation = math.radians(self.parameters['orbit']['sun_rotation'])
+        sun_period = self.parameters['orbit']['sun_period']['value']
+        sun_rotation = math.radians(self.parameters['orbit']['sun_rotation']['value'])
         self.sun_contoller = EllipticalKeplersMotion(sun_period,
                                                      s_major_axis,
                                                      eccentricity,
                                                      sun_rotation)
 
-        orbit_period = self.parameters['orbit']['orbit_period']
-        orbit_rotation = math.radians(self.parameters['orbit']['orbit_rotation'])
+        orbit_period = self.parameters['orbit']['orbit_period']['value']
+        orbit_rotation = math.radians(self.parameters['orbit']['orbit_rotation']['value'])
         self.orbit_controller = CircularMotion(orbit_period, orbit_rotation)
 
         self.scene.addItem(self.orbit)
 
-    def _config_arch_spirals(self):
-        ro = self.parameters['arch_spirals']['ro']
+    def _settings_arch_spirals(self):
+        ro = self.parameters['arch_spirals']['ro']['value']
         radius_center = self.orbit.radius_center()
         self.arch_spirals = SystemArchimedeanSpirals(ro * self.scale,
                                                      radius_center)
 
-        period = self.parameters['arch_spirals']['period']
-        rotation = math.radians(self.parameters['arch_spirals']['rotation'])
+        period = self.parameters['arch_spirals']['period']['value']
+        rotation = math.radians(self.parameters['arch_spirals']['rotation']['value'])
         self.arch_spirals_controller = CircularMotion(period, rotation)
 
         for spiral in self.arch_spirals.items():
             self.scene.addItem(spiral)
 
-    def _config_log_spirals(self):
-        alpha = self.parameters['log_spirals']['alpha']
-        r0 = self.parameters['log_spirals']['r0'] * self.scale
-        width = self.parameters['log_spirals']['width'] * self.scale
+    def _settings_log_spirals(self):
+        alpha = self.parameters['log_spirals']['alpha']['value']
+        r0 = self.parameters['log_spirals']['r0']['value'] * self.scale
+        width = self.parameters['log_spirals']['width']['value'] * self.scale
         self.log_spirals = SystemLogarithmicSpirals(alpha, r0, width)
 
-        period = self.parameters['log_spirals']['period']
-        rotation = math.radians(self.parameters['log_spirals']['rotation'])
+        period = self.parameters['log_spirals']['period']['value']
+        rotation = math.radians(self.parameters['log_spirals']['rotation']['value'])
         self.log_spirals_controller = CircularMotion(period, rotation)
 
         for spiral in self.log_spirals.items():
             self.scene.addItem(spiral)
+
+    def timerEvent(self, event):
+        self.run()
+
+    def run(self):
+        if self.RUN:
+            self._orbit_motion()
+            self._arch_spirals_motion()
+            self._log_spirals_motion()
+            self._update_manager()
+
+            self.time += self.time_interval
 
     @pyqtSlot()
     def restart(self):
@@ -111,16 +127,7 @@ class ExplorerWidget(QtWidgets.QWidget):
         self._arch_spirals_motion()
         self._log_spirals_motion()
 
-    def timerEvent(self, event):
-        self.run()
-
-    def run(self):
-        if self.RUN:
-            self._orbit_motion()
-            self._arch_spirals_motion()
-            self._log_spirals_motion()
-
-            self.time += self.time_interval
+        self._manager.restart()
 
     def _orbit_motion(self):
         sun_rotation = self.sun_contoller.rotation(self.time)
@@ -140,51 +147,20 @@ class ExplorerWidget(QtWidgets.QWidget):
         rotation = self.log_spirals_controller.rotation(self.time)
         self.log_spirals.set_rotation(rotation)
 
+    def _update_manager(self):
+        start_sun_rotation = self.parameters['orbit']['sun_rotation']['value']
+        sun_rotation = self.sun_contoller.full_rotation(self.time)
+        orbit_rotation = self.orbit_controller.rotation(self.time)
+        sun_distance = self.sun_contoller.distance(self.time)
+
+        sun_rotation = sun_rotation + math.degrees(orbit_rotation) - 90
+        self._manager.update(self.time, sun_distance, sun_rotation)
+
     @pyqtSlot(dict)
     def update_parameters(self, new_parameters: dict):
-        if new_parameters != {}:
-            self._update_parameters(new_parameters)
-            self.scene.clear()
-            self.config_items()
-            self.restart()
-
-    def _update_parameters(self, new_parameters):
-        for group, parameters in new_parameters.items():
-            for name, value in parameters.items():
-                self.parameters[group][name] = value
-
-    def intersection_with_arch_spirals(self):
-        sun_distance = self._distance(self.time) / self.scale
-
-        V0 = self.parameters['arch_spirals']['V0']
-        ro = self.parameters['arch_spirals']['ro']
-        period = self.parameters['arch_spirals']['period']
-
-        r = V0 * (28 + period / 2 * (self.k - 1) - self.time)
-        if sun_distance > r:
-            #print(self.time, sun_distance, r)
-            self.k += 1
-
-    def intersection_with_log_spirals(self):
-        sun_rotation = self.orbit.sun_rotation(self.time) - 180
-        sun_distance = self.orbit.sun_distance(self.time) / self.scale
-
-        self.data['sun'].append(sun_distance)
-        self.data['time'].append(self.time)
-
-        period = self.parameters['log_spirals']['period']
-        r0 = self.parameters['log_spirals']['r0']
-        alpha = self.parameters['log_spirals']['alpha']
-        arch_spiral_rotation = self.parameters['log_spirals']['rotation']
-        omega = 360 / period
-
-
-        #print(math.radians(sun_rotation) - omega * self.time)
-        r = r0 * math.exp(alpha * math.radians(sun_rotation - omega * self.time + arch_spiral_rotation + 360) )
-        self.data['log'].append(r)
-
-        if abs(sun_distance - r) < 0.05:
-            pass
+        self.parameters = new_parameters
+        self.settings_items()
+        self.restart()
 
     @pyqtSlot()
     def start(self):
@@ -193,4 +169,8 @@ class ExplorerWidget(QtWidgets.QWidget):
     @pyqtSlot()
     def stop(self):
         self.RUN = False
+
+    @pyqtSlot()
+    def show_graph(self):
+        self._manager.show_graph()
 

@@ -92,7 +92,7 @@ class EllipticalOrbitItem(EllipticalItem):
                             self._radius_center_mass)
 
     def set_rotation(self, rotation: float):
-        # degrees
+        # radians
         self.rotation = -math.degrees(rotation)
         self.setRotation(self.rotation)
 
@@ -129,6 +129,7 @@ class SunItem(EllipticalItem):
         super().setPos(QPointF(dx, dy) + pos)
 
     def set_rotation(self, rotation: float):
+        # radians
         self.rotation = -rotation
 
     def set_distance(self, distance: float):

@@ -63,6 +63,8 @@ class MainWindow(QtWidgets.QMainWindow):
         plot_menu = menu.addMenu('График')
 
         show_plot = plot_menu.addAction('Показать')
+        show_plot.triggered.connect(self.explorer.show_graph)
+
         save_plot = plot_menu.addAction('Сохранить')
 
     def create_statusbar(self):

@@ -21,6 +21,7 @@ class CircularMotion(LawMotion):
         rotation = self.rotational_speed * time + self.start_rotation
         return round(rotation, 5)
 
+
 class EllipticalKeplersMotion(LawMotion):
 
     def __init__(self,

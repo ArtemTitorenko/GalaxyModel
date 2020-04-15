@@ -67,8 +67,8 @@ class ArchimedeanSpiral(BaseSpiral):
         super().paint(painter, options, widget)
 
         x = self.width / 2
-        y = self.height / 2 - self.radius
-        painter.translate(QPointF(self.width / 2, self.height / 2 - self.radius))
+        y = self.height / 2 + self.radius
+        painter.translate(QPointF(x, y))
 
         points = []
         rotation, step_rotation = 0, 0.05
@@ -84,7 +84,7 @@ class ArchimedeanSpiral(BaseSpiral):
                 break
 
             rotation += step_rotation
-            points.append(QPointF(x, y))
+            points.append(QPointF(x, -y))
 
         painter.drawPolyline(QPolygonF(points))
 
@@ -129,7 +129,7 @@ class LogarithmicSpiral(BaseSpiral):
                 break
 
             rotation += step_rotation
-            points.append(QPointF(x, y))
+            points.append(QPointF(x, -y))
 
         painter.drawPolyline(QPolygonF(points))
 
@@ -148,6 +148,7 @@ class SystemArchimedeanSpirals(BaseSpiral):
             self.spirals.append(spiral)
 
     def set_rotation(self, rotation: float):
+        # radians
         rotation = -math.degrees(rotation)
         for num, spiral in enumerate(self.spirals):
             spiral.setRotation(num * self.rotation_step + rotation)
@@ -170,6 +171,7 @@ class SystemLogarithmicSpirals(BaseSpiral):
             self.spirals.append(spiral)
 
     def set_rotation(self, rotation: float):
+        # radians
         rotation = -math.degrees(rotation)
         for num, spiral in enumerate(self.spirals):
             spiral.setRotation(num * self.rotation_step + rotation)
